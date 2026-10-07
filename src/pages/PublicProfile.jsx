@@ -30,7 +30,6 @@ import {
   UserX,
   AlertCircle
 } from 'lucide-react';
-import { mockPeople } from '../data/mockPeople';
 import SkillBadge from '../components/common/SkillBadge';
 import PersonCard from '../components/people/PersonCard';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
@@ -52,7 +51,8 @@ export default function PublicProfile() {
   const [isExperienceModalOpen, setIsExperienceModalOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [connectionState, setConnectionState] = useState({ status: 'none', connectionId: null });
-  const [dbPerson, setDbPerson] = useState(null);
+  const [person, setPerson] = useState(null);
+  const [similarPeopleList, setSimilarPeopleList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Scroll to top when id changes
@@ -67,29 +67,38 @@ export default function PublicProfile() {
     const loadProfileData = async () => {
       setIsLoading(true);
       try {
-        if (isAuthenticated) {
-          // 1. Fetch public profile
-          try {
-            const res = await peopleApi.getPublicProfile(id);
-            if (res.success && res.person && isMounted) {
-              setDbPerson(res.person);
-            }
-          } catch (e) {
-            // Profile not in DB, will fallback to mockPeople
-          }
+        // 1. Fetch public profile
+        const res = await peopleApi.getPublicProfile(id);
+        if (res && res.success && res.person && isMounted) {
+          setPerson(res.person);
+        } else if (res && res.data && isMounted) {
+          setPerson(res.data);
+        }
 
-          // 2. Fetch connection status
+        // 2. Fetch connection status if authenticated
+        if (isAuthenticated) {
           try {
             const statusRes = await peopleApi.getConnectionStatus(id);
-            if (statusRes.success && isMounted) {
+            if (statusRes && statusRes.success && isMounted) {
               setConnectionState({
                 status: statusRes.status,
                 connectionId: statusRes.connectionId
               });
             }
           } catch (e) {
-            // Status check fallback
+            console.warn('Status check note:', e.message);
           }
+        }
+
+        // 3. Load similar people
+        try {
+          const simRes = await peopleApi.getPeople({ limit: 4 });
+          const list = Array.isArray(simRes.data) ? simRes.data : (Array.isArray(simRes.people) ? simRes.people : []);
+          if (isMounted) {
+            setSimilarPeopleList(list.filter(p => (p.id || p._id) !== id).slice(0, 3));
+          }
+        } catch (simErr) {
+          console.warn('Similar people note:', simErr.message);
         }
       } catch (err) {
         console.warn('Could not load profile from backend:', err);
@@ -102,14 +111,8 @@ export default function PublicProfile() {
     return () => { isMounted = false; };
   }, [id, isAuthenticated]);
 
-  // Find person by ID from DB or fallback mockPeople
-  const fallbackPerson = mockPeople.find(
-    (p) => p.id === id || String(p.id) === String(id) || p.id === `person-${id}`
-  );
-  const person = dbPerson || fallbackPerson;
-
   // Loading state
-  if (isLoading && !fallbackPerson) {
+  if (isLoading) {
     return (
       <div className="min-w-0 max-w-7xl mx-auto space-y-6 py-16 flex flex-col items-center justify-center min-h-[350px]">
         <div className="w-10 h-10 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -283,10 +286,7 @@ export default function PublicProfile() {
   };
 
   // 3 Related people for "People With Similar Career Paths"
-  const currentPersonId = person.id || person.userId || person._id || id;
-  const similarPeople = mockPeople
-    .filter((p) => p.id !== currentPersonId)
-    .slice(0, 3);
+  const similarPeople = similarPeopleList;
 
   const headline =
     person.headline ||

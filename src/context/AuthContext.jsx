@@ -1,8 +1,40 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../services/api';
-import { mockUser } from '../data/mockUser';
+import { authApi, profileApi } from '../services/api';
 
 const AuthContext = createContext(null);
+
+const buildFullUser = (authUser, profile) => {
+  if (!authUser) return null;
+  return {
+    id: authUser.id || authUser._id,
+    _id: authUser.id || authUser._id,
+    name: authUser.name || 'User',
+    email: authUser.email || '',
+    role: authUser.role || 'student',
+    phone: profile?.phone || '',
+    college: profile?.college || '',
+    degree: profile?.degree || '',
+    branch: profile?.branch || '',
+    graduationYear: profile?.graduationYear || '',
+    location: profile?.location || '',
+    bio: profile?.bio || '',
+    skills: profile?.skills || [],
+    targetRole: profile?.targetRole || 'Software Engineer',
+    careerInterests: profile?.careerInterests || [],
+    github: profile?.github || '',
+    linkedin: profile?.linkedin || '',
+    portfolio: profile?.portfolio || '',
+    projects: profile?.projects || [],
+    profileVisibility: profile?.profileVisibility || 'Public',
+    careerStatus: profile?.careerStatus || 'Actively Looking',
+    avatar: profile?.avatar || '',
+    openToGuidance: Boolean(profile?.openToGuidance),
+    guidanceTopics: profile?.guidanceTopics || [],
+    guidanceBio: profile?.guidanceBio || '',
+    guidanceExperience: profile?.guidanceExperience || '',
+    preferredGuidanceMode: profile?.preferredGuidanceMode || 'Online'
+  };
+};
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => {
@@ -53,15 +85,17 @@ export function AuthProvider({ children }) {
         try {
           const data = await authApi.getMe();
           if (data && data.success && data.user) {
-            // Merge DB user with mockUser template to provide rich mock profile attributes (avatar, college, etc.)
-            const fullUserProfile = {
-              ...mockUser,
-              ...data.user,
-              id: data.user.id || mockUser.id,
-              name: data.user.name || mockUser.name,
-              email: data.user.email || mockUser.email,
-              role: data.user.role || mockUser.role
-            };
+            let profile = null;
+            try {
+              const profRes = await profileApi.getProfile();
+              if (profRes && profRes.success) {
+                profile = profRes.profile;
+              }
+            } catch (e) {
+              // Profile may not exist yet
+            }
+
+            const fullUserProfile = buildFullUser(data.user, profile);
             setUser(fullUserProfile);
             localStorage.setItem('careerpilot_user', JSON.stringify(fullUserProfile));
             setIsAuthenticated(true);
@@ -100,14 +134,15 @@ export function AuthProvider({ children }) {
       const data = await authApi.login({ email, password: effectivePassword });
       if (data && data.token) {
         localStorage.setItem('careerpilot_token', data.token);
-        const fullUser = {
-          ...mockUser,
-          ...data.user,
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role
-        };
+        let profile = null;
+        try {
+          const profRes = await profileApi.getProfile();
+          if (profRes && profRes.success) {
+            profile = profRes.profile;
+          }
+        } catch (e) {}
+
+        const fullUser = buildFullUser(data.user, profile);
         localStorage.setItem('careerpilot_user', JSON.stringify(fullUser));
         setToken(data.token);
         setUser(fullUser);
@@ -132,15 +167,7 @@ export function AuthProvider({ children }) {
 
       if (data && data.token) {
         localStorage.setItem('careerpilot_token', data.token);
-        const fullUser = {
-          ...mockUser,
-          ...userData,
-          ...data.user,
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role
-        };
+        const fullUser = buildFullUser(data.user, null);
         localStorage.setItem('careerpilot_user', JSON.stringify(fullUser));
         setToken(data.token);
         setUser(fullUser);

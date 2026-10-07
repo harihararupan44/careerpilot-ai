@@ -25,7 +25,6 @@ import SkillBadge from '../components/common/SkillBadge';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { profileApi } from '../services/api';
-import { mockUser } from '../data/mockUser';
 
 export default function Profile() {
   const { user, updateUserProfile } = useAuth();
@@ -38,29 +37,29 @@ export default function Profile() {
 
   // Local candidate profile state
   const [profileData, setProfileData] = useState(() => ({
-    name: user?.name || mockUser.name,
-    email: user?.email || mockUser.email,
-    role: user?.role || mockUser.role,
-    phone: mockUser.phone || '',
-    college: mockUser.college || '',
-    degree: mockUser.degree || '',
-    branch: 'Computer Science & Engineering',
-    graduationYear: 2026,
-    gpa: mockUser.gpa || '3.86 / 4.00',
-    location: mockUser.location || 'Boston, MA',
-    bio: mockUser.bio || '',
-    avatar: user?.avatar || mockUser.avatar,
-    github: mockUser.github || '',
-    linkedin: mockUser.linkedin || '',
-    portfolio: mockUser.portfolio || '',
-    targetRole: 'Software Engineer',
-    skills: mockUser.skills || [],
-    projects: mockUser.projects || [],
-    openToGuidance: false,
-    guidanceTopics: ['DSA', 'Placement Preparation', 'Resume Review'],
-    guidanceBio: '',
-    guidanceExperience: '',
-    preferredGuidanceMode: 'Online'
+    name: user?.name || '',
+    email: user?.email || '',
+    role: user?.role || 'student',
+    phone: user?.phone || '',
+    college: user?.college || '',
+    degree: user?.degree || '',
+    branch: user?.branch || 'Computer Science & Engineering',
+    graduationYear: user?.graduationYear || new Date().getFullYear(),
+    gpa: '',
+    location: user?.location || '',
+    bio: user?.bio || '',
+    avatar: user?.avatar || '',
+    github: user?.github || '',
+    linkedin: user?.linkedin || '',
+    portfolio: user?.portfolio || '',
+    targetRole: user?.targetRole || 'Software Engineer',
+    skills: user?.skills || [],
+    projects: user?.projects || [],
+    openToGuidance: Boolean(user?.openToGuidance),
+    guidanceTopics: user?.guidanceTopics || ['DSA', 'Placement Preparation', 'Resume Review'],
+    guidanceBio: user?.guidanceBio || '',
+    guidanceExperience: user?.guidanceExperience || '',
+    preferredGuidanceMode: user?.preferredGuidanceMode || 'Online'
   }));
 
   // Fetch live profile from backend on component mount

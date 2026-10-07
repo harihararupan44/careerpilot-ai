@@ -36,9 +36,7 @@ import ReadinessRadar from '../components/analytics/ReadinessRadar';
 import { useApplications } from '../context/ApplicationContext';
 import { useAuth } from '../context/AuthContext';
 import { useGuidance } from '../context/GuidanceContext';
-import { dashboardApi, communityApi, interviewExperienceApi } from '../services/api';
-import { mockPeople } from '../data/mockPeople';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
+import { dashboardApi, peopleApi, interviewExperienceApi } from '../services/api';
 import { formatDate } from '../utils/formatters';
 
 export default function Dashboard() {
@@ -54,8 +52,8 @@ export default function Dashboard() {
 
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [recommendedPeople, setRecommendedPeople] = useState(mockPeople.slice(0, 3));
-  const [recommendedExperiences, setRecommendedExperiences] = useState(mockInterviewExperiences.slice(0, 3));
+  const [recommendedPeople, setRecommendedPeople] = useState([]);
+  const [recommendedExperiences, setRecommendedExperiences] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch real Dashboard summary & recommendations
@@ -66,8 +64,8 @@ export default function Dashboard() {
       const [summaryRes, actRes, peopleRes, expRes] = await Promise.allSettled([
         dashboardApi.getSummary(),
         dashboardApi.getActivity({ limit: 8 }),
-        communityApi ? communityApi.getPeople({ limit: 3 }) : Promise.resolve(null),
-        interviewExperienceApi ? interviewExperienceApi.getExperiences({ limit: 3 }) : Promise.resolve(null)
+        peopleApi.getPeople({ limit: 3 }),
+        interviewExperienceApi.getExperiences({ limit: 3 })
       ]);
 
       if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) {
@@ -76,10 +74,11 @@ export default function Dashboard() {
       if (actRes.status === 'fulfilled' && actRes.value?.success) {
         setRecentActivities(actRes.value.data || []);
       }
-      if (peopleRes.status === 'fulfilled' && peopleRes.value?.success && Array.isArray(peopleRes.value.data) && peopleRes.value.data.length > 0) {
-        setRecommendedPeople(peopleRes.value.data.slice(0, 3));
+      if (peopleRes.status === 'fulfilled' && peopleRes.value?.success) {
+        const pList = Array.isArray(peopleRes.value.data) ? peopleRes.value.data : (Array.isArray(peopleRes.value.people) ? peopleRes.value.people : []);
+        setRecommendedPeople(pList.slice(0, 3));
       }
-      if (expRes.status === 'fulfilled' && expRes.value?.success && Array.isArray(expRes.value.data) && expRes.value.data.length > 0) {
+      if (expRes.status === 'fulfilled' && expRes.value?.success && Array.isArray(expRes.value.data)) {
         setRecommendedExperiences(expRes.value.data.slice(0, 3));
       }
     } catch (err) {

@@ -25,13 +25,10 @@ import FitScore from '../components/common/FitScore';
 import SkillBadge from '../components/common/SkillBadge';
 import CountdownTimer from '../components/interviews/CountdownTimer';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
-import { mockInterviewPrepData } from '../data/mockInterviews';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
-import { mockPeople } from '../data/mockPeople';
 import { useApplications } from '../context/ApplicationContext';
 import { useGuidance } from '../context/GuidanceContext';
 import { useAuth } from '../context/AuthContext';
-import { interviewApi, interviewQuestionApi } from '../services/api';
+import { interviewApi, interviewQuestionApi, peopleApi, interviewExperienceApi } from '../services/api';
 import { formatDate } from '../utils/formatters';
 
 export default function InterviewPrep() {
@@ -42,19 +39,17 @@ export default function InterviewPrep() {
   const { sendGuidanceRequest } = useGuidance();
 
   const application = getApplicationById(id) || {
-    id: id || 'app-1',
-    company: 'Stripe',
-    jobTitle: 'Software Engineer - New Grad 2026',
-    interviewDate: '2026-08-30T14:00:00Z',
-    round: 'Technical Virtual Onsite - Round 2',
-    fitScore: 88,
+    id: id || '',
+    company: 'Target Company',
+    jobTitle: 'Software Engineer',
+    interviewDate: null,
+    round: 'Technical Interview Round',
+    fitScore: 85,
   };
-
-  const defaultPrep = mockInterviewPrepData[id] || mockInterviewPrepData['app-1'] || {};
 
   const [activeCategory, setActiveCategory] = useState('technical');
   const [expandedQuestion, setExpandedQuestion] = useState(null);
-  const [checklistState, setChecklistState] = useState(defaultPrep.checklist || [
+  const [checklistState, setChecklistState] = useState([
     { id: 'c1', text: 'Test camera, microphone, and internet connection', completed: false },
     { id: 'c2', text: 'Review company tech stack and recent engineering blogs', completed: false },
     { id: 'c3', text: 'Prepare 3 STAR stories for behavioral questions', completed: false },
@@ -64,28 +59,40 @@ export default function InterviewPrep() {
   const [isGuidanceModalOpen, setIsGuidanceModalOpen] = useState(false);
   const [dbQuestions, setDbQuestions] = useState([]);
   const [dbInterview, setDbInterview] = useState(null);
+  const [communityPeople, setCommunityPeople] = useState([]);
+  const [communityExperiences, setCommunityExperiences] = useState([]);
 
   // Load questions and interview prep data from backend API
   React.useEffect(() => {
     let isMounted = true;
     const loadBackendData = async () => {
       try {
-        if (isAuthenticated) {
-          const qRes = await interviewQuestionApi.getQuestions({ limit: 50 });
-          if (qRes.success && Array.isArray(qRes.questions) && qRes.questions.length > 0) {
-            if (isMounted) setDbQuestions(qRes.questions);
-          }
+        const [qRes, peopleRes, expRes] = await Promise.allSettled([
+          interviewQuestionApi.getQuestions({ limit: 50 }),
+          peopleApi.getPeople({ limit: 10 }),
+          interviewExperienceApi.getExperiences({ limit: 10 })
+        ]);
 
-          // Try fetching interview if id is a MongoDB ObjectId
-          if (id && id.length === 24) {
-            try {
-              const iRes = await interviewApi.getInterviewById(id);
-              if (iRes.success && iRes.interview && isMounted) {
-                setDbInterview(iRes.interview);
-              }
-            } catch (err) {
-              // Graceful fallback to application
+        if (qRes.status === 'fulfilled' && qRes.value?.success && Array.isArray(qRes.value.questions)) {
+          if (isMounted) setDbQuestions(qRes.value.questions);
+        }
+        if (peopleRes.status === 'fulfilled' && peopleRes.value?.success) {
+          const pList = Array.isArray(peopleRes.value.data) ? peopleRes.value.data : (Array.isArray(peopleRes.value.people) ? peopleRes.value.people : []);
+          if (isMounted) setCommunityPeople(pList);
+        }
+        if (expRes.status === 'fulfilled' && expRes.value?.success && Array.isArray(expRes.value.data)) {
+          if (isMounted) setCommunityExperiences(expRes.value.data);
+        }
+
+        // Try fetching interview if id is a MongoDB ObjectId
+        if (id && id.length === 24 && isAuthenticated) {
+          try {
+            const iRes = await interviewApi.getInterviewById(id);
+            if (iRes.success && iRes.interview && isMounted) {
+              setDbInterview(iRes.interview);
             }
+          } catch (err) {
+            // Handled
           }
         }
       } catch (err) {
@@ -98,35 +105,35 @@ export default function InterviewPrep() {
 
   const prepData = useMemo(() => {
     return {
-      company: dbInterview?.company || application.company || defaultPrep.company || 'Target Company',
-      role: dbInterview?.jobTitle || application.jobTitle || defaultPrep.role || 'Software Engineer',
-      round: dbInterview?.interviewType ? `${dbInterview.interviewType} Interview Round` : (application.round || defaultPrep.round || 'Technical Virtual Onsite'),
-      interviewDate: dbInterview?.scheduledDate || application.interviewDate || defaultPrep.interviewDate || '2026-08-30T14:00:00Z',
-      topicsToRevise: defaultPrep.topicsToRevise || [
+      company: dbInterview?.company || application.company || 'Target Company',
+      role: dbInterview?.jobTitle || application.jobTitle || 'Software Engineer',
+      round: dbInterview?.interviewType ? `${dbInterview.interviewType} Interview Round` : (application.round || 'Technical Interview Round'),
+      interviewDate: dbInterview?.scheduledDate || application.interviewDate || null,
+      topicsToRevise: [
         { topic: 'System Design & Architecture', importance: 'High', notes: 'Review rate limiters and distributed caching patterns.' },
         { topic: 'Data Structures & Algorithms', importance: 'High', notes: 'Focus on graphs, dynamic programming, and hash maps.' },
         { topic: 'Behavioral STAR Scenarios', importance: 'Medium', notes: 'Prepare leadership and teamwork conflict examples.' }
       ]
     };
-  }, [dbInterview, application, defaultPrep]);
+  }, [dbInterview, application]);
 
   // Relevant alumni who interviewed at this company
   const relevantPeople = useMemo(() => {
-    const directMatches = mockPeople.filter(
+    const directMatches = communityPeople.filter(
       (p) => p.company?.toLowerCase() === prepData.company?.toLowerCase()
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-    return mockPeople.slice(0, 3);
-  }, [prepData.company]);
+    return communityPeople.slice(0, 3);
+  }, [prepData.company, communityPeople]);
 
   // Related interview experiences for this company
   const relatedExperiences = useMemo(() => {
-    const directMatches = mockInterviewExperiences.filter(
+    const directMatches = communityExperiences.filter(
       (e) => e.company?.toLowerCase() === prepData.company?.toLowerCase()
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-    return mockInterviewExperiences.slice(0, 3);
-  }, [prepData.company]);
+    return communityExperiences.slice(0, 3);
+  }, [prepData.company, communityExperiences]);
 
   const toggleChecklist = (cId) => {
     setChecklistState((prev) => {

@@ -35,17 +35,51 @@ import SkillBadge from '../components/common/SkillBadge';
 import ProgressBar from '../components/common/ProgressBar';
 import EmptyState from '../components/common/EmptyState';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
-import { mockJobsList, mockJobTemplates } from '../data/mockJobs';
-import { mockUser } from '../data/mockUser';
-import { mockPeople } from '../data/mockPeople';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
-import { mockAiService } from '../services/mockAiService';
 import { useApplications } from '../context/ApplicationContext';
 import { useGuidance } from '../context/GuidanceContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { jobApi, aiApi } from '../services/api';
+import { jobApi, aiApi, peopleApi, interviewExperienceApi } from '../services/api';
 import { formatDate } from '../utils/formatters';
+
+const SAMPLE_JOB_TEMPLATES = [
+  {
+    id: 'sample-fullstack',
+    title: 'Full Stack Software Engineer',
+    company: 'FinTech Innovations',
+    location: 'Bangalore, India (Hybrid)',
+    salary: '₹18L - ₹24L / yr',
+    description: `We are looking for a Full Stack Software Engineer to build scalable microservices and intuitive web interfaces.
+Requirements:
+- 2+ years of experience with React, Node.js, and Express.
+- Strong knowledge of MongoDB, PostgreSQL, and Redis caching.
+- Experience writing RESTful APIs, unit tests, and CI/CD pipelines.
+- Solid understanding of data structures, algorithms, and system design principles.`
+  },
+  {
+    id: 'sample-backend',
+    title: 'Backend Engineer - Distributed Systems',
+    company: 'CloudScale Technologies',
+    location: 'Remote, India',
+    salary: '₹22L - ₹30L / yr',
+    description: `Join our core infrastructure engineering team designing high-throughput distributed systems.
+Requirements:
+- Strong proficiency in Node.js, TypeScript, and Go.
+- In-depth experience with Kafka, Docker, Kubernetes, and AWS cloud architecture.
+- Expertise in database indexing, concurrency control, and low-latency API design.`
+  },
+  {
+    id: 'sample-frontend',
+    title: 'Frontend Engineer (React / Next.js)',
+    company: 'DesignWorks Studio',
+    location: 'Hyderabad, India (Hybrid)',
+    salary: '₹14L - ₹20L / yr',
+    description: `We are looking for a talented Frontend Engineer passionate about crafting seamless digital experiences.
+Requirements:
+- Strong command of React 19, JavaScript (ES6+), TypeScript, and Tailwind CSS.
+- Experience with state management, web performance optimization, and responsive design.`
+  }
+];
 
 export default function JobIntelligence() {
   const navigate = useNavigate();
@@ -61,6 +95,8 @@ export default function JobIntelligence() {
   const [backendJobs, setBackendJobs] = useState([]);
   const [savedJobsList, setSavedJobsList] = useState([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [communityPeople, setCommunityPeople] = useState([]);
+  const [communityExperiences, setCommunityExperiences] = useState([]);
 
   // Browse State
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,17 +106,17 @@ export default function JobIntelligence() {
   const [minMatchFilter, setMinMatchFilter] = useState('All');
   const [sortBy, setSortBy] = useState('match-desc');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [savedJobIds, setSavedJobIds] = useState(new Set(['job-1', 'job-4']));
+  const [savedJobIds, setSavedJobIds] = useState(new Set());
   const [selectedJobId, setSelectedJobId] = useState(null);
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
 
   // Custom JD Analyzer State
   const [selectedTemplate, setSelectedTemplate] = useState('sample-fullstack');
-  const [jobText, setJobText] = useState(mockJobTemplates[0]?.description || '');
-  const [customJobTitle, setCustomJobTitle] = useState(mockJobTemplates[0]?.title || '');
-  const [customCompany, setCustomCompany] = useState(mockJobTemplates[0]?.company || '');
-  const [customLocation, setCustomLocation] = useState(mockJobTemplates[0]?.location || '');
-  const [customSalary, setCustomSalary] = useState(mockJobTemplates[0]?.salary || '');
+  const [jobText, setJobText] = useState(SAMPLE_JOB_TEMPLATES[0].description);
+  const [customJobTitle, setCustomJobTitle] = useState(SAMPLE_JOB_TEMPLATES[0].title);
+  const [customCompany, setCustomCompany] = useState(SAMPLE_JOB_TEMPLATES[0].company);
+  const [customLocation, setCustomLocation] = useState(SAMPLE_JOB_TEMPLATES[0].location);
+  const [customSalary, setCustomSalary] = useState(SAMPLE_JOB_TEMPLATES[0].salary);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
 
@@ -183,11 +219,29 @@ export default function JobIntelligence() {
     fetchSavedJobs();
   }, [fetchSavedJobs]);
 
-  // Effective job dataset (Backend jobs if available, fallback to mockJobsList)
-  const currentDataset = useMemo(() => {
-    if (backendJobs.length > 0) return backendJobs;
-    return mockJobsList;
-  }, [backendJobs]);
+  // Fetch community people & experiences for alumni/interview insights
+  useEffect(() => {
+    const fetchCommunityData = async () => {
+      try {
+        const [peopleRes, expRes] = await Promise.all([
+          peopleApi.getPeople({ limit: 10 }),
+          interviewExperienceApi.getExperiences({ limit: 10 })
+        ]);
+        if (peopleRes && Array.isArray(peopleRes.data)) {
+          setCommunityPeople(peopleRes.data);
+        }
+        if (expRes && Array.isArray(expRes.data)) {
+          setCommunityExperiences(expRes.data);
+        }
+      } catch (e) {
+        console.warn('Could not load community suggestions:', e.message);
+      }
+    };
+    fetchCommunityData();
+  }, []);
+
+  // Effective job dataset (Backend jobs from MongoDB)
+  const currentDataset = backendJobs;
 
   // Filter & sort jobs list
   const filteredJobs = useMemo(() => {
@@ -199,29 +253,29 @@ export default function JobIntelligence() {
       const q = searchQuery.toLowerCase().trim();
       const matchesQuery =
         !q ||
-        job.title.toLowerCase().includes(q) ||
-        job.company.toLowerCase().includes(q) ||
-        job.location.toLowerCase().includes(q) ||
+        job.title?.toLowerCase().includes(q) ||
+        job.company?.toLowerCase().includes(q) ||
+        job.location?.toLowerCase().includes(q) ||
         job.skills?.some((s) => s.toLowerCase().includes(q));
 
       const matchesWorkMode =
-        workModeFilter === 'All' || job.workMode.toLowerCase() === workModeFilter.toLowerCase();
+        workModeFilter === 'All' || job.workMode?.toLowerCase() === workModeFilter.toLowerCase();
 
       const matchesExperience =
-        experienceFilter === 'All' || job.experience.toLowerCase().includes(experienceFilter.toLowerCase());
+        experienceFilter === 'All' || job.experience?.toLowerCase().includes(experienceFilter.toLowerCase());
 
       const matchesMatch =
         minMatchFilter === 'All' ||
         (minMatchFilter === '80+' && job.fitScore >= 80) ||
         (minMatchFilter === '90+' && job.fitScore >= 90);
 
-      const matchesSavedTab = activeTab !== 'saved' || savedJobIds.has(job.id);
+      const matchesSavedTab = activeTab !== 'saved' || savedJobIds.has(job.id || job._id);
 
       return matchesQuery && matchesWorkMode && matchesExperience && matchesMatch && matchesSavedTab;
     }).sort((a, b) => {
       if (sortBy === 'match-desc') return (b.fitScore || 0) - (a.fitScore || 0);
       if (sortBy === 'date-desc') return new Date(b.postedDate || 0) - new Date(a.postedDate || 0);
-      if (sortBy === 'company') return a.company.localeCompare(b.company);
+      if (sortBy === 'company') return (a.company || '').localeCompare(b.company || '');
       return 0;
     });
   }, [currentDataset, savedJobsList, searchQuery, workModeFilter, experienceFilter, minMatchFilter, sortBy, activeTab, savedJobIds]);
@@ -229,8 +283,8 @@ export default function JobIntelligence() {
   // Selected job for right-pane / modal details
   const selectedJob = useMemo(() => {
     if (selectedJobId) {
-      const found = filteredJobs.find((j) => j.id === selectedJobId) ||
-                    currentDataset.find((j) => j.id === selectedJobId);
+      const found = filteredJobs.find((j) => (j.id === selectedJobId || j._id === selectedJobId)) ||
+                    currentDataset.find((j) => (j.id === selectedJobId || j._id === selectedJobId));
       if (found) return found;
     }
     return filteredJobs[0] || currentDataset[0] || null;
@@ -238,27 +292,27 @@ export default function JobIntelligence() {
 
   // Relevant alumni matching selected job
   const relevantPeople = useMemo(() => {
-    if (!selectedJob) return (mockPeople || []).slice(0, 3);
-    const directMatches = (mockPeople || []).filter(
+    if (!selectedJob) return communityPeople.slice(0, 3);
+    const directMatches = communityPeople.filter(
       (p) =>
         p.company?.toLowerCase().includes(selectedJob.company?.toLowerCase()) ||
         p.role?.toLowerCase().includes(selectedJob.title?.toLowerCase().split(' ')[0])
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-    return (mockPeople || []).slice(0, 3);
-  }, [selectedJob]);
+    return communityPeople.slice(0, 3);
+  }, [selectedJob, communityPeople]);
 
   // Related interview experiences for selected job
   const relatedExperiences = useMemo(() => {
-    if (!selectedJob) return (mockInterviewExperiences || []).slice(0, 3);
-    const directMatches = (mockInterviewExperiences || []).filter(
+    if (!selectedJob) return communityExperiences.slice(0, 3);
+    const directMatches = communityExperiences.filter(
       (e) =>
         e.company?.toLowerCase().includes(selectedJob.company?.toLowerCase()) ||
         e.role?.toLowerCase().includes(selectedJob.title?.toLowerCase().split(' ')[0])
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-    return (mockInterviewExperiences || []).slice(0, 3);
-  }, [selectedJob]);
+    return communityExperiences.slice(0, 3);
+  }, [selectedJob, communityExperiences]);
 
   // Toggle Save Job
   const handleToggleSave = async (jobId) => {
@@ -317,7 +371,7 @@ export default function JobIntelligence() {
   // Custom JD Analyzer handlers
   const handleSelectTemplate = (id) => {
     setSelectedTemplate(id);
-    const tmpl = mockJobTemplates.find((t) => t.id === id);
+    const tmpl = SAMPLE_JOB_TEMPLATES.find((t) => t.id === id);
     if (tmpl) {
       setJobText(tmpl.description);
       setCustomJobTitle(tmpl.title);
@@ -332,47 +386,39 @@ export default function JobIntelligence() {
     if (!jobText.trim()) return;
     setIsAnalyzing(true);
     try {
-      if (isAuthenticated) {
-        try {
-          const res = await aiApi.matchResumeJob({
-            jobDescription: jobText,
-            jobTitle: customJobTitle,
-            company: customCompany
-          });
-          if (res && res.success && res.data) {
-            const d = res.data;
-            const normalized = {
-              fitScore: d.matchScore ?? d.fitScore ?? 85,
-              matchingSkills: d.matchingSkills || [],
-              missingSkills: d.missingSkills || [],
-              roleFitVerdict: d.fitVerdict || d.roleFitVerdict || 'Strong Candidate',
-              recommendation: d.recommendation || d.summary || 'Solid candidate match with core requirements.',
-              strengths: d.strengths || [],
-              skillGaps: d.missingSkills || d.skillGaps || [],
-              actionableAdvice: d.actionableSteps || d.actionableAdvice || []
-            };
-            setAnalysisResult(normalized);
-            addToast({
-              title: 'JD Analysis Complete',
-              message: `Fit Score calculated: ${normalized.fitScore}%`,
-              type: 'success'
-            });
-            return;
-          }
-        } catch (apiErr) {
-          console.warn('Backend AI match fallback:', apiErr.message);
-        }
-      }
-
-      const result = await mockAiService.analyzeJobDescription(jobText, mockUser);
-      setAnalysisResult(result);
-      addToast({
-        title: 'JD Analysis Complete',
-        message: `Fit Score calculated: ${result.fitScore}%`,
-        type: 'success'
+      const res = await aiApi.matchResumeJob({
+        jobDescription: jobText,
+        jobTitle: customJobTitle,
+        company: customCompany
       });
+      if (res && res.success && res.data) {
+        const d = res.data;
+        const normalized = {
+          fitScore: d.matchScore ?? d.fitScore ?? 85,
+          matchingSkills: d.matchedSkills || d.matchingSkills || [],
+          missingSkills: d.missingSkills || [],
+          roleFitVerdict: d.fitVerdict || d.roleFitVerdict || 'Strong Candidate',
+          recommendation: d.recommendation || d.summary || 'Solid candidate match with core requirements.',
+          strengths: d.matchingStrengths || d.strengths || [],
+          skillGaps: d.missingSkills || d.gaps || [],
+          actionableAdvice: d.recommendations || d.actionableAdvice || []
+        };
+        setAnalysisResult(normalized);
+        addToast({
+          title: 'JD Analysis Complete',
+          message: `Fit Score calculated: ${normalized.fitScore}%`,
+          type: 'success'
+        });
+      } else {
+        throw new Error(res?.message || 'Failed to analyze job description');
+      }
     } catch (e) {
-      addToast({ title: 'Error', message: 'Failed to analyze JD', type: 'error' });
+      console.error('JD analysis error:', e);
+      addToast({
+        title: 'Analysis Failed',
+        message: e.message || 'Could not evaluate job description',
+        type: 'error'
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -1115,7 +1161,7 @@ export default function JobIntelligence() {
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
               Load Sample JD:
             </span>
-            {mockJobTemplates.map((t) => (
+            {SAMPLE_JOB_TEMPLATES.map((t) => (
               <button
                 key={t.id}
                 onClick={() => handleSelectTemplate(t.id)}

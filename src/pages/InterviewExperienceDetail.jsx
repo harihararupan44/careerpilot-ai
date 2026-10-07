@@ -31,7 +31,6 @@ import {
   Trash2,
   Loader2
 } from 'lucide-react';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { interviewExperiencesApi } from '../services/api';
@@ -56,35 +55,37 @@ export default function InterviewExperienceDetail() {
   const [isGuidanceModalOpen, setIsGuidanceModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [relatedList, setRelatedList] = useState([]);
 
-  // Load experience data from API or fallback
+  // Load experience data from API
   const loadExperience = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await interviewExperiencesApi.getExperience(id);
-      if (res.success && res.data) {
+      if (res && res.success && res.data) {
         setExperience(res.data);
         setHelpfulCount(res.data.helpfulCount || 0);
         setIsHelpful(Boolean(res.data.isHelpful));
         setSelectedRoundIndex(0);
-        setIsLoading(false);
-        return;
+      } else {
+        setExperience(null);
+      }
+
+      // Load related experiences
+      try {
+        const relRes = await interviewExperiencesApi.getExperiences({ limit: 4 });
+        if (relRes && relRes.success && Array.isArray(relRes.data)) {
+          setRelatedList(relRes.data.filter(e => (e._id || e.id) !== id).slice(0, 3));
+        }
+      } catch (relErr) {
+        console.warn('Related experiences note:', relErr.message);
       }
     } catch (err) {
-      console.warn('Could not load experience from backend API, checking fallback:', err);
-    }
-
-    // Fallback lookup
-    const fallback = mockInterviewExperiences.find((e) => e.id === id || e._id === id);
-    if (fallback) {
-      setExperience(fallback);
-      setHelpfulCount(fallback.helpfulCount || 100);
-      setIsHelpful(false);
-      setSelectedRoundIndex(0);
-    } else {
+      console.warn('Could not load experience from backend API:', err);
       setExperience(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [id]);
 
   useEffect(() => {
@@ -137,9 +138,7 @@ export default function InterviewExperienceDetail() {
   }
 
   // Related experiences
-  const relatedExperiences = mockInterviewExperiences
-    .filter((e) => e.id !== targetId && e._id !== targetId)
-    .slice(0, 3);
+  const relatedExperiences = relatedList;
 
   const getDifficultyBadge = (diff) => {
     switch (diff?.toLowerCase()) {

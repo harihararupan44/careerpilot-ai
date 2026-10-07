@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
-import { mockApplications } from '../data/mockApplications';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 import { applicationApi } from '../services/api';
@@ -9,9 +8,10 @@ const ApplicationContext = createContext(null);
 
 export function ApplicationProvider({ children }) {
   const { isAuthenticated } = useAuth();
-  const [applications, setApplications] = useState(mockApplications);
+  const [applications, setApplications] = useState([]);
   const [backendStats, setBackendStats] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -89,9 +89,14 @@ export function ApplicationProvider({ children }) {
 
   // Fetch applications from backend API
   const loadApplications = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setApplications([]);
+      setBackendStats(null);
+      return;
+    }
     try {
       setIsLoading(true);
+      setError(null);
       const [appsRes, statsRes] = await Promise.all([
         applicationApi.getApplications({ limit: 100 }),
         applicationApi.getApplicationStats()
@@ -105,7 +110,9 @@ export function ApplicationProvider({ children }) {
         setBackendStats(statsRes.stats);
       }
     } catch (err) {
-      console.warn('Could not fetch applications from backend, using fallback:', err);
+      console.error('Could not fetch applications from backend:', err);
+      setError(err.message || 'Failed to load applications');
+      setApplications([]);
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +155,9 @@ export function ApplicationProvider({ children }) {
           jobTitle: newApp.jobTitle,
           applicationUrl: newApp.applicationUrl || newApp.jobUrl || '',
           location: newApp.location || '',
+          salaryMin: newApp.salaryMin || undefined,
+          salaryMax: newApp.salaryMax || undefined,
+          salary: newApp.salary || '',
           status: newApp.status || 'Applied',
           notes: newApp.notes || '',
           deadline: newApp.deadline || null,
@@ -173,20 +183,13 @@ export function ApplicationProvider({ children }) {
         }
       } catch (err) {
         console.error('Error saving application to backend:', err);
+        setApplications(prev => prev.filter(a => a.id !== tempId));
         addToast({
-          title: 'Saved Locally',
-          message: err.message || 'Saved in local view',
-          type: 'info'
+          title: 'Failed to Create Application',
+          message: err.message || 'Could not save application to server',
+          type: 'error'
         });
-      }
-    } else {
-      addToast({
-        title: 'Application Added',
-        message: `Successfully tracked ${optimisticApp.company} (${optimisticApp.jobTitle})`,
-        type: 'success'
-      });
-      if (optimisticApp.status === 'Offer') {
-        try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); } catch (e) {}
+        throw err;
       }
     }
 
@@ -194,95 +197,113 @@ export function ApplicationProvider({ children }) {
   };
 
   const updateApplication = async (id, updatedFields) => {
-    setApplications(prev => prev.map(app => {
-      if (app.id === id || app._id === id) {
-        return { ...app, ...updatedFields };
-      }
-      return app;
-    }));
-
-    if (isAuthenticated && id && !String(id).startsWith('app-')) {
-      try {
+    try {
+      if (isAuthenticated && id && !String(id).startsWith('app-')) {
         await applicationApi.updateApplication(id, updatedFields);
-        loadApplications();
-      } catch (err) {
-        console.error('Failed to update application on backend:', err);
+        await loadApplications();
+      } else {
+        setApplications(prev => prev.map(app => {
+          if (app.id === id || app._id === id) {
+            return { ...app, ...updatedFields };
+          }
+          return app;
+        }));
       }
-    }
 
-    addToast({
-      title: 'Updated Application',
-      message: 'Application details updated successfully.',
-      type: 'info'
-    });
+      addToast({
+        title: 'Updated Application',
+        message: 'Application details updated successfully.',
+        type: 'info'
+      });
+    } catch (err) {
+      console.error('Failed to update application on backend:', err);
+      addToast({
+        title: 'Update Failed',
+        message: err.message || 'Could not update application',
+        type: 'error'
+      });
+      throw err;
+    }
   };
 
   const changeStatus = async (id, newStatus, note = '') => {
-    setApplications(prev => prev.map(app => {
-      if (app.id === id || app._id === id) {
-        const updatedTimeline = [
-          ...(app.timeline || []),
-          {
-            status: newStatus,
-            date: new Date().toISOString().split('T')[0],
-            note: note || `Status changed to ${newStatus}`
-          }
-        ];
-
-        return {
-          ...app,
-          status: newStatus,
-          timeline: updatedTimeline,
-        };
-      }
-      return app;
-    }));
-
-    if (isAuthenticated && id && !String(id).startsWith('app-')) {
-      try {
+    try {
+      if (isAuthenticated && id && !String(id).startsWith('app-')) {
         await applicationApi.updateApplicationStatus(id, newStatus);
-        loadApplications();
-      } catch (err) {
-        console.error('Failed to update status on backend:', err);
-      }
-    }
+        await loadApplications();
+      } else {
+        setApplications(prev => prev.map(app => {
+          if (app.id === id || app._id === id) {
+            const updatedTimeline = [
+              ...(app.timeline || []),
+              {
+                status: newStatus,
+                date: new Date().toISOString().split('T')[0],
+                note: note || `Status changed to ${newStatus}`
+              }
+            ];
 
-    if (newStatus === 'Offer') {
-      try {
-        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-      } catch (e) {}
+            return {
+              ...app,
+              status: newStatus,
+              timeline: updatedTimeline,
+            };
+          }
+          return app;
+        }));
+      }
+
+      if (newStatus === 'Offer') {
+        try {
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+        } catch (e) {}
+        addToast({
+          title: '🎉 Congratulations on your Offer!',
+          message: `Application status updated to Offer!`,
+          type: 'success',
+          duration: 6000
+        });
+      } else {
+        addToast({
+          title: 'Status Updated',
+          message: `Moved to ${newStatus}`,
+          type: 'info'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update status on backend:', err);
       addToast({
-        title: '🎉 Congratulations on your Offer!',
-        message: `Application status updated to Offer!`,
-        type: 'success',
-        duration: 6000
+        title: 'Status Update Failed',
+        message: err.message || 'Could not update status on server',
+        type: 'error'
       });
-    } else {
-      addToast({
-        title: 'Status Updated',
-        message: `Moved to ${newStatus}`,
-        type: 'info'
-      });
+      throw err;
     }
   };
 
   const deleteApplication = async (id) => {
-    setApplications(prev => prev.filter(app => app.id !== id && app._id !== id));
-
-    if (isAuthenticated && id && !String(id).startsWith('app-')) {
-      try {
+    try {
+      if (isAuthenticated && id && !String(id).startsWith('app-')) {
         await applicationApi.deleteApplication(id);
-        loadApplications();
-      } catch (err) {
-        console.error('Failed to delete application on backend:', err);
+        await loadApplications();
+      } else {
+        setApplications(prev => prev.filter(app => app.id !== id && app._id !== id));
       }
-    }
 
-    addToast({
-      title: 'Application Removed',
-      message: 'The application was removed from your tracker.',
-      type: 'info'
-    });
+      addToast({
+        title: 'Application Removed',
+        message: 'The application was removed from your tracker.',
+        type: 'info'
+      });
+    } catch (err) {
+      console.error('Failed to delete application on backend:', err);
+      addToast({
+        title: 'Deletion Failed',
+        message: err.message || 'Could not delete application',
+        type: 'error'
+      });
+      throw err;
+    }
   };
 
   const updateNotes = async (id, notes) => {

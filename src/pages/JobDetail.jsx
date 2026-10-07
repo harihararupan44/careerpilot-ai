@@ -28,14 +28,11 @@ import FitScore from '../components/common/FitScore';
 import Card from '../components/common/Card';
 import EmptyState from '../components/common/EmptyState';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
-import { mockJobsList } from '../data/mockJobs';
-import { mockPeople } from '../data/mockPeople';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
 import { useApplications } from '../context/ApplicationContext';
 import { useGuidance } from '../context/GuidanceContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { jobApi } from '../services/api';
+import { jobApi, peopleApi, interviewExperienceApi } from '../services/api';
 import { formatDate } from '../utils/formatters';
 
 export default function JobDetail() {
@@ -50,6 +47,8 @@ export default function JobDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [communityPeople, setCommunityPeople] = useState([]);
+  const [communityExperiences, setCommunityExperiences] = useState([]);
 
   // Guidance Modal State
   const [selectedPersonForGuidance, setSelectedPersonForGuidance] = useState(null);
@@ -72,41 +71,40 @@ export default function JobDetail() {
     setError(null);
 
     try {
-      if (isAuthenticated) {
-        // 1. Fetch Job from API
-        const res = await jobApi.getJobById(id);
-        if (res.success && res.job) {
-          setJob(res.job);
-        } else {
-          throw new Error('Job not found');
-        }
+      // 1. Fetch Job from API
+      const res = await jobApi.getJobById(id);
+      if (res && res.success && res.job) {
+        setJob(res.job);
+      } else {
+        throw new Error('Job not found');
+      }
 
-        // 2. Check if job is saved
+      // 2. Check if job is saved
+      if (isAuthenticated) {
         try {
           const savedRes = await jobApi.checkSavedJob(id);
-          if (savedRes.success) {
+          if (savedRes && savedRes.success) {
             setIsSaved(!!savedRes.saved);
           }
         } catch (savedErr) {
           console.warn('Could not verify saved state:', savedErr);
         }
-      } else {
-        // Fallback to mock data for unauthenticated browsing
-        const fallback = mockJobsList.find((j) => j.id === id || j._id === id);
-        if (fallback) {
-          setJob(fallback);
-        } else {
-          setError('Job not found');
-        }
+      }
+
+      // 3. Load community alumni & experiences
+      try {
+        const [peopleRes, expRes] = await Promise.all([
+          peopleApi.getPeople({ limit: 10 }),
+          interviewExperienceApi.getExperiences({ limit: 10 })
+        ]);
+        if (peopleRes && Array.isArray(peopleRes.data)) setCommunityPeople(peopleRes.data);
+        if (expRes && Array.isArray(expRes.data)) setCommunityExperiences(expRes.data);
+      } catch (cErr) {
+        console.warn('Community lookup note:', cErr.message);
       }
     } catch (err) {
-      console.warn('Backend job fetch failed, checking mock fallback:', err);
-      const fallback = mockJobsList.find((j) => j.id === id || j._id === id);
-      if (fallback) {
-        setJob(fallback);
-      } else {
-        setError(err.message || 'Unable to load job details');
-      }
+      console.error('Backend job fetch failed:', err);
+      setError(err.message || 'Unable to load job details');
     } finally {
       setIsLoading(false);
     }
@@ -166,27 +164,27 @@ export default function JobDetail() {
 
   // Relevant Alumni
   const relevantPeople = useMemo(() => {
-    if (!job) return mockPeople.slice(0, 3);
-    const directMatches = mockPeople.filter(
+    if (!job) return communityPeople.slice(0, 3);
+    const directMatches = communityPeople.filter(
       (p) =>
         p.company?.toLowerCase().includes(job.company?.toLowerCase()) ||
         p.role?.toLowerCase().includes(job.title?.toLowerCase().split(' ')[0])
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-    return mockPeople.slice(0, 3);
-  }, [job]);
+    return communityPeople.slice(0, 3);
+  }, [job, communityPeople]);
 
   // Related Interview Experiences
   const relatedExperiences = useMemo(() => {
-    if (!job) return mockInterviewExperiences.slice(0, 2);
-    const directMatches = mockInterviewExperiences.filter(
+    if (!job) return communityExperiences.slice(0, 2);
+    const directMatches = communityExperiences.filter(
       (e) =>
         e.company?.toLowerCase().includes(job.company?.toLowerCase()) ||
         e.role?.toLowerCase().includes(job.title?.toLowerCase().split(' ')[0])
     );
     if (directMatches.length > 0) return directMatches.slice(0, 2);
-    return mockInterviewExperiences.slice(0, 2);
-  }, [job]);
+    return communityExperiences.slice(0, 2);
+  }, [job, communityExperiences]);
 
   const handleOpenGuidance = (person) => {
     setSelectedPersonForGuidance(person);

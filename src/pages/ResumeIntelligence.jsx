@@ -35,12 +35,10 @@ import SkillBadge from '../components/common/SkillBadge';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
-import { mockResumeData } from '../data/mockResume';
-import { mockPeople } from '../data/mockPeople';
 import { useGuidance } from '../context/GuidanceContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { resumeApi, aiApi } from '../services/api';
+import { resumeApi, aiApi, peopleApi } from '../services/api';
 
 export default function ResumeIntelligence() {
   const navigate = useNavigate();
@@ -226,8 +224,22 @@ export default function ResumeIntelligence() {
   };
 
   // Matched alumni who share key skills with the candidate's resume
-  const peopleWithSimilarSkills = useMemo(() => {
-    return (mockPeople || []).slice(0, 3);
+  const [peopleWithSimilarSkills, setPeopleWithSimilarSkills] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSimilarPeople = async () => {
+      try {
+        const res = await peopleApi.getPeople({ limit: 6 });
+        if (res.success && Array.isArray(res.people) && isMounted) {
+          setPeopleWithSimilarSkills(res.people.slice(0, 3));
+        }
+      } catch (e) {
+        console.warn('Failed to load alumni from peopleApi:', e);
+      }
+    };
+    fetchSimilarPeople();
+    return () => { isMounted = false; };
   }, []);
 
   const handleSimulateUpload = async (e) => {

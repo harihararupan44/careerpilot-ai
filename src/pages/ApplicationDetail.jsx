@@ -24,15 +24,13 @@ import {
 } from 'lucide-react';
 import { useApplications } from '../context/ApplicationContext';
 import { useGuidance } from '../context/GuidanceContext';
-import { applicationApi } from '../services/api';
+import { applicationApi, peopleApi, interviewExperienceApi } from '../services/api';
 import StatusBadge from '../components/common/StatusBadge';
 import FitScore from '../components/common/FitScore';
 import SkillBadge from '../components/common/SkillBadge';
 import Card from '../components/common/Card';
 import CountdownTimer from '../components/interviews/CountdownTimer';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
-import { mockPeople } from '../data/mockPeople';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
 import { formatDate } from '../utils/formatters';
 
 export default function ApplicationDetail() {
@@ -49,6 +47,8 @@ export default function ApplicationDetail() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [selectedPersonForGuidance, setSelectedPersonForGuidance] = useState(null);
   const [isGuidanceModalOpen, setIsGuidanceModalOpen] = useState(false);
+  const [communityPeople, setCommunityPeople] = useState([]);
+  const [communityExperiences, setCommunityExperiences] = useState([]);
 
   // Fetch latest application data from API on mount / ID change
   useEffect(() => {
@@ -65,11 +65,25 @@ export default function ApplicationDetail() {
           }
         }
       } catch (err) {
-        console.warn('Could not fetch single application detail directly from API, using context fallback:', err);
+        console.warn('Could not fetch single application detail directly from API:', err);
+      }
+    };
+
+    const fetchCommunity = async () => {
+      try {
+        const [peopleRes, expRes] = await Promise.all([
+          peopleApi.getPeople({ limit: 10 }),
+          interviewExperienceApi.getExperiences({ limit: 10 })
+        ]);
+        if (peopleRes && Array.isArray(peopleRes.data) && isMounted) setCommunityPeople(peopleRes.data);
+        if (expRes && Array.isArray(expRes.data) && isMounted) setCommunityExperiences(expRes.data);
+      } catch (cErr) {
+        console.warn('Community load note:', cErr.message);
       }
     };
 
     fetchLatestApp();
+    fetchCommunity();
     return () => {
       isMounted = false;
     };
@@ -85,26 +99,22 @@ export default function ApplicationDetail() {
   // Relevant people matching application company or general role
   const relevantPeople = useMemo(() => {
     if (!application) return [];
-    const directMatches = mockPeople.filter(
+    const directMatches = communityPeople.filter(
       (p) => p.company?.toLowerCase() === application.company?.toLowerCase()
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-
-    // If company not direct match, provide matching role/skills alumni
-    return mockPeople.slice(0, 3);
-  }, [application]);
+    return communityPeople.slice(0, 3);
+  }, [application, communityPeople]);
 
   // Related interview experiences matching company
   const relatedExperiences = useMemo(() => {
     if (!application) return [];
-    const directMatches = mockInterviewExperiences.filter(
+    const directMatches = communityExperiences.filter(
       (e) => e.company?.toLowerCase() === application.company?.toLowerCase()
     );
     if (directMatches.length > 0) return directMatches.slice(0, 3);
-
-    // Fallback to top related experiences
-    return mockInterviewExperiences.slice(0, 3);
-  }, [application]);
+    return communityExperiences.slice(0, 3);
+  }, [application, communityExperiences]);
 
   if (!application) {
     return (

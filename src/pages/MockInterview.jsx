@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import Card from '../components/common/Card';
 import ProgressBar from '../components/common/ProgressBar';
-import { mockQuestionsBank } from '../data/mockInterviews';
 import { useApplications } from '../context/ApplicationContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -36,7 +35,7 @@ export default function MockInterview() {
   const application = getApplicationById(id) || { company: 'Target Company', jobTitle: 'Software Engineer' };
 
   const [sessionId, setSessionId] = useState(null);
-  const [questions, setQuestions] = useState(mockQuestionsBank);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,7 +79,26 @@ export default function MockInterview() {
 
         // Fetch question bank to create a new session
         const qRes = await interviewQuestionApi.getQuestions({ limit: 5 });
-        let questionList = mockQuestionsBank;
+        let questionList = [
+          {
+            id: 'q1',
+            question: 'Tell me about a complex project you built and the key architectural decisions you made.',
+            category: 'System Design',
+            sampleGoodAnswer: 'I architected a scalable distributed service using microservices, message queues for async ingestion, and Redis caching to handle peak traffic with sub-100ms latency.'
+          },
+          {
+            id: 'q2',
+            question: 'How do you handle database indexing and query optimization when table sizes grow significantly?',
+            category: 'Database',
+            sampleGoodAnswer: 'I profile slow queries using EXPLAIN ANALYZE, create compound indexes matching query filters and sort orders, avoid unbounded scans, and partition data where appropriate.'
+          },
+          {
+            id: 'q3',
+            question: 'Describe a situation where you resolved a difficult bug in production. What was your debugging methodology?',
+            category: 'Behavioral / Problem Solving',
+            sampleGoodAnswer: 'I isolated the issue using structured APM logs and correlation IDs, reproduced it locally with unit tests, patched the race condition, and set up alert metrics to prevent recurrence.'
+          }
+        ];
         let questionIds = [];
 
         if (qRes.success && Array.isArray(qRes.questions) && qRes.questions.length > 0) {
@@ -92,8 +110,9 @@ export default function MockInterview() {
             sampleGoodAnswer: q.sampleAnswer || 'Structured response with architectural and trade-off considerations.'
           }));
           questionIds = qRes.questions.map((q) => q.id || q._id);
-          if (isMounted) setQuestions(questionList);
         }
+
+        if (isMounted) setQuestions(questionList);
 
         // Create new session in MongoDB
         const createRes = await mockInterviewApi.createMockInterview({

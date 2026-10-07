@@ -14,7 +14,6 @@ import {
   Loader2,
   RotateCcw
 } from 'lucide-react';
-import { mockInterviewExperiences } from '../data/mockInterviewExperiences';
 import ExperienceCard from '../components/interviews/ExperienceCard';
 import ExperienceFilters from '../components/interviews/ExperienceFilters';
 import CreateExperienceModal from '../components/interviews/CreateExperienceModal';
@@ -61,11 +60,11 @@ export default function InterviewExperiences() {
     try {
       setIsLoading(true);
       const res = await interviewExperiencesApi.getExperiences({ limit: 50 });
-      if (res.success && Array.isArray(res.data)) {
+      if (res && res.success && Array.isArray(res.data)) {
         setDbExperiences(res.data);
       }
     } catch (err) {
-      console.warn('Could not load experiences from API, using fallback data:', err);
+      console.warn('Could not load experiences from API:', err);
     } finally {
       setIsLoading(false);
     }
@@ -75,15 +74,8 @@ export default function InterviewExperiences() {
     fetchExperiences();
   }, [fetchExperiences]);
 
-  // Combined dataset: API data prioritized, merged with mockInterviewExperiences
-  const allExperiences = useMemo(() => {
-    if (dbExperiences.length > 0) {
-      const dbIds = new Set(dbExperiences.map((e) => e._id || e.id));
-      const filteredMock = mockInterviewExperiences.filter((m) => !dbIds.has(m.id));
-      return [...dbExperiences, ...filteredMock];
-    }
-    return mockInterviewExperiences;
-  }, [dbExperiences]);
+  // Real dataset from API
+  const allExperiences = dbExperiences;
 
   // Extract unique options for filter dropdowns
   const companies = useMemo(() => {

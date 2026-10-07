@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { calculateJobFit } from '../../utils/fitScoreCalculator';
-import { mockUser } from '../../data/mockUser';
+import { useAuth } from '../../context/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 export default function AddApplicationModal({
@@ -10,6 +10,7 @@ export default function AddApplicationModal({
   initialStatus = 'Applied',
   onAdd,
 }) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     company: '',
     jobTitle: '',
@@ -20,7 +21,7 @@ export default function AddApplicationModal({
     applicationDate: new Date().toISOString().split('T')[0],
     deadline: '',
     interviewDate: '',
-    resumeUsed: 'Alex_Rivera_SWE_Backend_v2.pdf',
+    resumeUsed: 'Primary_Resume.pdf',
     notes: '',
     jobDescription: '',
   });
@@ -37,9 +38,13 @@ export default function AddApplicationModal({
     const text = e.target.value;
     setFormData(prev => ({ ...prev, jobDescription: text }));
     if (text.length > 30) {
-      const fit = calculateJobFit(text, mockUser.skills, mockUser.projects);
-      if (fit) {
-        setCalculatedFit(fit.overallScore);
+      const userSkills = Array.isArray(user?.skills) ? user.skills : [];
+      const userProjects = Array.isArray(user?.projects) ? user.projects : [];
+      if (userSkills.length > 0) {
+        const fit = calculateJobFit(text, userSkills, userProjects);
+        if (fit) {
+          setCalculatedFit(fit.overallScore);
+        }
       }
     }
   };

@@ -14,7 +14,6 @@ import PersonCard from '../components/people/PersonCard';
 import PeopleFilters from '../components/people/PeopleFilters';
 import RequestGuidanceModal from '../components/people/RequestGuidanceModal';
 import EmptyState from '../components/common/EmptyState';
-import { mockPeople } from '../data/mockPeople';
 import { useAuth } from '../context/AuthContext';
 import { peopleApi } from '../services/api';
 
@@ -42,12 +41,12 @@ export default function ExplorePeople() {
   React.useEffect(() => {
     let isMounted = true;
     const fetchPeople = async () => {
-      if (!isAuthenticated) return;
       try {
         setIsLoading(true);
         const res = await peopleApi.getPeople({ limit: 50 });
-        if (res.success && Array.isArray(res.people) && res.people.length > 0 && isMounted) {
-          setDbPeople(res.people);
+        const list = Array.isArray(res.data) ? res.data : (Array.isArray(res.people) ? res.people : []);
+        if (isMounted) {
+          setDbPeople(list);
         }
       } catch (err) {
         console.warn('Could not load community people from backend:', err);
@@ -60,16 +59,8 @@ export default function ExplorePeople() {
     return () => { isMounted = false; };
   }, [isAuthenticated]);
 
-  // Combined dataset: backend profiles prioritized, merged with mockPeople for rich discovery
-  const allPeople = useMemo(() => {
-    if (dbPeople.length > 0) {
-      // Merge unique people
-      const dbIds = new Set(dbPeople.map(p => p.id));
-      const filteredMock = mockPeople.filter(p => !dbIds.has(p.id));
-      return [...dbPeople, ...filteredMock];
-    }
-    return mockPeople;
-  }, [dbPeople]);
+  // Dataset from backend
+  const allPeople = dbPeople;
 
   const quickSearchChips = [
     'Software Engineer',
