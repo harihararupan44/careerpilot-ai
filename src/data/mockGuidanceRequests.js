@@ -1,0 +1,123 @@
+export const initialSentRequests = [
+  {
+    id: 'req-sent-1',
+    mentorId: 'person-1',
+    mentorName: 'Arun Kumar',
+    mentorRole: 'Software Development Engineer',
+    mentorCompany: 'Amazon',
+    mentorAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=250&auto=format&fit=crop&q=80',
+    targetCompany: 'Amazon',
+    targetRole: 'Software Development Engineer (SDE-1)',
+    topics: ['DSA', 'Technical Interview', 'Placement Preparation'],
+    message: 'Hi Arun, I am preparing for upcoming Amazon campus drives. I would love some pointers on Tree/Graph algorithms and navigating Bar Raiser LP questions.',
+    date: '2026-09-18',
+    status: 'Accepted',
+    statusNote: 'Arun accepted your request! Google Meet session scheduled for Saturday at 5:00 PM IST.',
+    meetLink: 'https://meet.google.com/abc-defg-hij'
+  },
+  {
+    id: 'req-sent-2',
+    mentorId: 'person-3',
+    mentorName: 'Karthik Raja',
+    mentorRole: 'Software Development Engineer',
+    mentorCompany: 'Google',
+    mentorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250&auto=format&fit=crop&q=80',
+    targetCompany: 'Google',
+    targetRole: 'Software Engineer',
+    topics: ['DSA', 'Career Planning', 'Projects'],
+    message: 'Hi Karthik, I built a distributed key-value store and would love your review on how to frame my system design and algorithms on my resume for Google.',
+    date: '2026-09-20',
+    status: 'Pending',
+    statusNote: 'Request received. Karthik typically responds within 24–48 hours.',
+    meetLink: null
+  },
+  {
+    id: 'req-sent-3',
+    mentorId: 'person-2',
+    mentorName: 'Priya Sundaram',
+    mentorRole: 'Software Engineer',
+    mentorCompany: 'Microsoft',
+    mentorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=250&auto=format&fit=crop&q=80',
+    targetCompany: 'Microsoft',
+    targetRole: 'Software Engineer (Azure)',
+    topics: ['Resume', 'Technical Interview'],
+    message: 'Hello Priya, looking for advice on formatting my cloud computing projects and preparing for Microsoft technical rounds.',
+    date: '2026-09-14',
+    status: 'Accepted',
+    statusNote: 'Session completed. Priya shared valuable feedback on binary search and Azure design patterns.',
+    meetLink: null
+  },
+  {
+    id: 'req-sent-4',
+    mentorId: 'person-5',
+    mentorName: 'Rahul Sharma',
+    mentorRole: 'Software Engineer',
+    mentorCompany: 'Uber',
+    mentorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250&auto=format&fit=crop&q=80',
+    targetCompany: 'Uber',
+    targetRole: 'Backend Engineer',
+    topics: ['Projects', 'HR Interview'],
+    message: 'Hi Rahul, reaching out to learn more about backend concurrency in Go and how Uber structures real-time dispatch systems.',
+    date: '2026-09-10',
+    status: 'Rejected',
+    statusNote: 'Rahul is currently at maximum mentee capacity for this quarter and unable to take new requests.',
+    meetLink: null
+  }
+];
+
+export const initialReceivedRequests = [
+  {
+    id: 'req-recv-1',
+    studentName: 'Sneha Reddy',
+    studentCollege: 'NIT Trichy',
+    studentAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=250&auto=format&fit=crop&q=80',
+    studentDegree: 'B.Tech CSE, 2026',
+    targetCompany: 'Google',
+    targetRole: 'Software Engineer (L3)',
+    topics: ['DSA', 'Technical Interview', 'Projects'],
+    message: 'Hi! I am preparing for Google off-campus recruitment. I have solved 400+ LeetCode problems and built a distributed cache. Would really appreciate a quick review of my system design approach and tips for the coding rounds.',
+    date: '2026-09-23',
+    status: 'Pending'
+  },
+  {
+    id: 'req-recv-2',
+    studentName: 'Vikram Patel',
+    studentCollege: 'BITS Pilani',
+    studentAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250&auto=format&fit=crop&q=80',
+    studentDegree: 'B.E. Computer Science, 2025',
+    targetCompany: 'Amazon',
+    targetRole: 'Software Development Engineer I',
+    topics: ['Resume', 'Placement Preparation'],
+    message: 'Hello! I noticed you cracked Amazon placement. Could you review my resume bullet points and give me advice on framing Amazon Leadership Principles for the behavioral round?',
+    date: '2026-09-22',
+    status: 'Pending'
+  },
+  {
+    id: 'req-recv-3',
+    studentName: 'Ananya Iyer',
+    studentCollege: 'IIT Madras',
+    studentAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80',
+    studentDegree: 'B.Tech Electrical, 2025',
+    targetCompany: 'Microsoft',
+    targetRole: 'Software Engineer (Azure Core)',
+    topics: ['Career Planning', 'Technical Interview'],
+    message: 'Hi! I am transitioning from EE to Software Engineering. Would love guidance on essential CS fundamentals to focus on for Microsoft interviews.',
+    date: '2026-09-20',
+    status: 'Accepted',
+    statusNote: 'Accepted on Sep 20. Google Meet session scheduled.'
+  },
+  {
+    id: 'req-recv-4',
+    studentName: 'Rohan Verma',
+    studentCollege: 'SRM University',
+    studentAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=250&auto=format&fit=crop&q=80',
+    studentDegree: 'B.Tech IT, 2026',
+    targetCompany: 'Uber',
+    targetRole: 'Backend Engineer',
+    topics: ['HR Interview', 'Career Planning'],
+    message: 'Hi! Looking for mentorship on salary negotiation and team matching discussions for entry-level backend positions.',
+    date: '2026-09-15',
+    status: 'Rejected',
+    statusNote: 'Declined due to scheduling constraints.'
+  }
+];
