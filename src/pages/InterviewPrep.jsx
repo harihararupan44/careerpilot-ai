@@ -168,7 +168,7 @@ export default function InterviewPrep() {
 
   // Group backend questions by category with fallbacks
   const questionsMap = useMemo(() => {
-    if (dbQuestions.length > 0) {
+    if (dbQuestions && dbQuestions.length > 0) {
       return {
         technical: dbQuestions.filter(q => q.category === 'Technical').map(q => ({
           question: q.question,
@@ -194,12 +194,46 @@ export default function InterviewPrep() {
     }
 
     return {
-      technical: defaultPrep.technicalQuestions || [],
-      hr: defaultPrep.hrQuestions || [],
-      resume: defaultPrep.resumeQuestions || [],
-      project: defaultPrep.projectQuestions || []
+      technical: [
+        {
+          question: 'How do you design a scalable caching tier for high-concurrency microservices?',
+          hint: 'Discuss Redis/Memcached cluster topologies, cache invalidation strategies (write-through, cache-aside), and thundering herd mitigations.',
+          keyPoints: ['Cache eviction policies (LRU/LFU)', 'TTL strategies and stale-while-revalidate', 'Handling cache penetration with bloom filters']
+        },
+        {
+          question: 'Explain the difference between optimistic and pessimistic locking in database transactions.',
+          hint: 'Contrast version numbering checks during commit against immediate row-level exclusive locks.',
+          keyPoints: ['Use cases for optimistic locking in high-read systems', 'Deadlock detection in pessimistic locking', 'Isolation levels (Read Committed vs Serializable)']
+        }
+      ],
+      hr: [
+        {
+          question: 'Describe a situation where you had a disagreement with a team member on technical approach. How did you resolve it?',
+          hint: 'Use the STAR method. Focus on data-driven evaluation, objective benchmarks, and alignment on project deliverables.',
+          keyPoints: ['Focus on shared goals and business impact', 'Propose a quick spike or prototype to compare metrics', 'Commit fully once a team decision was finalized']
+        },
+        {
+          question: 'Tell me about a time you had to meet a tight deadline with changing requirements.',
+          hint: 'Highlight prioritization, active stakeholder communication, and iterative scoping.',
+          keyPoints: ['Identify MVP requirements vs nice-to-haves', 'Frequent async progress updates to stakeholders', 'Maintain code quality without technical debt shortcuts']
+        }
+      ],
+      resume: [
+        {
+          question: 'Walk me through the most technically challenging component in your recent project.',
+          hint: 'Clearly explain the problem statement, why existing solutions were insufficient, and your architectural solution.',
+          keyPoints: ['Explain data flows and component interactions', 'Highlight throughput/latency improvements with metrics', 'Reflect on lessons learned and what you would do differently']
+        }
+      ],
+      project: [
+        {
+          question: 'How do you ensure end-to-end reliability and observability in your application services?',
+          hint: 'Cover structured logging, distributed tracing (OpenTelemetry), and health probe alerting.',
+          keyPoints: ['Correlation IDs across service boundaries', 'SLOs, SLIs, and alert threshold configuration', 'Graceful degradation and fallback mechanisms']
+        }
+      ]
     };
-  }, [dbQuestions, defaultPrep]);
+  }, [dbQuestions]);
 
   const getDifficultyColor = (diff) => {
     switch (diff?.toLowerCase()) {

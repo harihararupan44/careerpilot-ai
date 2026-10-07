@@ -64,7 +64,9 @@ export default function App() {
                   <Route path="/applications" element={<ApplicationTracker />} />
                   <Route path="/applications/:id" element={<ApplicationDetail />} />
                   <Route path="/rejection/:id" element={<RejectionAnalysis />} />
+                  <Route path="/interview" element={<InterviewPrep />} />
                   <Route path="/interview/:id" element={<InterviewPrep />} />
+                  <Route path="/mock-interview" element={<MockInterview />} />
                   <Route path="/mock-interview/:id" element={<MockInterview />} />
                   <Route path="/analytics" element={<CareerAnalytics />} />
                   <Route path="/notifications" element={<Notifications />} />
